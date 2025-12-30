@@ -17,7 +17,14 @@ const db = getDatabase(app);
 
 let roomId, roomRef;
 
-const PATTERNS = ["early_five","early_top","early_middle","early_bottom","full_house"];
+const PATTERNS = [
+  { key: "early_five", label: "Early Five" },
+  { key: "early_top", label: "Top Row" },
+  { key: "early_middle", label: "Middle Row" },
+  { key: "early_bottom", label: "Bottom Row" },
+  { key: "full_house", label: "Full House" }
+];
+
 const numbers90 = () => Array.from({length:90},(_,i)=>i+1);
 
 window.toggleTickets = () => tickets.classList.toggle("collapsed");
@@ -79,15 +86,17 @@ window.createRoom = () => {
 
 /* ---------- ROOM ACTIONS (ANYONE CAN DO) ---------- */
 function initPrizeInputs(){
-  prizeInputs.innerHTML="";
-  PATTERNS.forEach(p=>{
-    const i=document.createElement("input");
-    i.type="number";
-    i.placeholder=p.replace("_"," ")+" prize ₹";
-    i.onchange=()=>update(roomRef,{[`prizes/${p}`]:+i.value||0});
+  prizeInputs.innerHTML = "";
+  PATTERNS.forEach(p => {
+    const i = document.createElement("input");
+    i.type = "number";
+    i.placeholder = p.label + " Prize ₹";
+    i.onchange = () =>
+      update(roomRef, { [`prizes/${p.key}`]: +i.value || 0 });
     prizeInputs.appendChild(i);
   });
 }
+
 
 window.addPlayer = () => {
   if(!playerName.value) return;
@@ -184,7 +193,9 @@ function renderPlayers(players){
     o.innerText=players[id].name;
     winnerPlayer.appendChild(o);
   }
-  winType.innerHTML=PATTERNS.map(p=>`<option>${p}</option>`).join("");
+  winType.innerHTML = PATTERNS
+  .map(p => `<option value="${p.key}">${p.label}</option>`)
+  .join("");
 }
 
 function renderTickets(d){
@@ -264,5 +275,6 @@ function renderSettlement(d){
 </script>
 */
 }
+
 
 
