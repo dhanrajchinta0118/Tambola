@@ -60,6 +60,11 @@ window.joinRoom = async () => {
   listenRoom(); // 🔥 listener decides UI, NOT joinRoom
 };
 
+function updateRoomLabels() {
+  document
+    .querySelectorAll(".clsroomLabel")
+    .forEach(el => el.innerText = roomId);
+}
 
 /* ---------- CREATE ROOM ---------- */
 window.createRoom = () => {
@@ -78,8 +83,8 @@ window.createRoom = () => {
   joinBox.hidden = true;
   setup.hidden = true;
   panel.hidden = false;
-  roomLabel.innerText = roomId;
-
+  
+  updateRoomLabels();
   initPrizeInputs();
   listenRoom();
 };
@@ -150,7 +155,7 @@ function listenRoom(){
 
     const d = normalize(snap.val());
 
-    roomLabel.innerText = roomId;
+    updateRoomLabels();
     iterationLabel.innerText = "Iteration " + d.meta.iteration;
     current.innerText = d.game.current ?? "--";
 
@@ -275,6 +280,5 @@ function renderSettlement(d){
 </script>
 */
 }
-
 
 
