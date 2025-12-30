@@ -58,27 +58,42 @@ button:active {
   max-width: 520px;
   animation: fadeUp 0.5s ease;
 }
+#game select, #game button {
+  min-height: 44px; /* mobile touch friendly */
+}
+
+#game h3 {
+  margin-top: 20px;
+  opacity: 0.9;
+}
 
 /* ---------- BOARD ---------- */
 #board {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 6px;
-  margin-top: 15px;
+  margin: 15px auto;
+  max-width: 360px;
 }
 
 #board span {
-  padding: 8px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(255,255,255,0.15);
-  border-radius: 6px;
-  transition: background 0.3s ease, transform 0.2s ease;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.25s ease;
 }
 
 #board span.drawn {
-  background: #4caf50;
+  background: linear-gradient(135deg, #4caf50, #81c784);
   color: #000;
-  transform: scale(1.1);
+  font-weight: bold;
+  transform: scale(1.15);
 }
+
 
 /* ---------- CURRENT NUMBER ---------- */
 #current {
@@ -99,11 +114,19 @@ button:active {
   opacity: 0.8;
 }
 
-.collapsed {
-  max-height: 0;
+#tickets {
   overflow: hidden;
-  transition: max-height 0.4s ease;
+  max-height: 1000px; /* enough to hold content */
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+  opacity: 1;
 }
+
+#tickets.collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 
 /* ---------- TABLES ---------- */
 table {
@@ -142,3 +165,4 @@ td, th {
   0% { transform: scale(0.9); }
   100% { transform: scale(1); }
 }
+
