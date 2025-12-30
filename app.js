@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getDatabase, ref, set, update, onValue, get } 
+import { getDatabase, ref, set, update, onValue, get }
 from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-/* 🔥 Firebase Config */
+/* Firebase */
 const firebaseConfig = {
   apiKey: "AIzaSyATYxYA5Z9LlZdV56zx5gqVjzQjLHzwpKY",
   authDomain: "tambola-8abb7.firebaseapp.com",
@@ -15,13 +15,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let roomId, roomRef, myId;
+let roomId, roomRef;
 
 const PATTERNS = ["early_five","early_top","early_middle","early_bottom","full_house"];
 const numbers90 = () => Array.from({length:90},(_,i)=>i+1);
 
+window.toggleTickets = () => tickets.classList.toggle("collapsed");
+
 /* ---------- NORMALIZER ---------- */
-function normalizeRoom(d) {
+function normalize(d){
   return {
     meta: d?.meta ?? {},
     players: d?.players ?? {},
@@ -36,69 +38,78 @@ function normalizeRoom(d) {
   };
 }
 
+/* ---------- JOIN ROOM ---------- */
+window.joinRoom = async () => {
+  roomId = joinRoomId.value.trim();
+  if (!roomId) return;
+
+  roomRef = ref(db, "rooms/" + roomId);
+  const snap = await get(roomRef);
+  if (!snap.exists()) return alert("Room not found");
+
+  joinBox.hidden = true;
+  setup.hidden = true;
+
+  listenRoom(); // 🔥 listener decides UI, NOT joinRoom
+};
+
+
 /* ---------- CREATE ROOM ---------- */
 window.createRoom = () => {
-  const host = hostName.value.trim();
-  const price = +ticketPrice.value;
-  if (!host || !price) return alert("Enter details");
-
-  myId = "host_" + Date.now();
   roomId = Math.random().toString(36).substring(2,8);
   roomRef = ref(db,"rooms/"+roomId);
 
   set(roomRef,{
-    meta:{ hostId:myId, iteration:1, status:"setup", ticketPrice:price },
+    meta:{ iteration:1, status:"setup", ticketPrice:+ticketPrice.value },
     players:{},
     tickets:{},
     prizes:{},
-    game:{ current:null, drawn:[], available:numbers90() },
-    winnings:{}
+    winnings:{},
+    game:{ current:null, drawn:[], available:numbers90() }
   });
 
-  setup.hidden=true;
-  hostPanel.hidden=false;
-  roomLabel.innerText=roomId;
+  joinBox.hidden = true;
+  setup.hidden = true;
+  panel.hidden = false;
+  roomLabel.innerText = roomId;
 
   initPrizeInputs();
   listenRoom();
 };
 
-/* ---------- HOST ---------- */
-function isHost(d){ return d.meta.hostId===myId }
-
+/* ---------- ROOM ACTIONS (ANYONE CAN DO) ---------- */
 function initPrizeInputs(){
   prizeInputs.innerHTML="";
   PATTERNS.forEach(p=>{
     const i=document.createElement("input");
-    i.id="prize_"+p;
-    i.placeholder=`${p.replace("_"," ")} prize ₹`;
+    i.type="number";
+    i.placeholder=p.replace("_"," ")+" prize ₹";
+    i.onchange=()=>update(roomRef,{[`prizes/${p}`]:+i.value||0});
     prizeInputs.appendChild(i);
   });
 }
 
 window.addPlayer = () => {
+  if(!playerName.value) return;
   set(ref(db,`rooms/${roomId}/players/p_${Date.now()}`),
     {name:playerName.value});
   playerName.value="";
 };
 
 window.startGame = () => {
-  const prizes={};
-  PATTERNS.forEach(p=>prizes[p]=+document.getElementById("prize_"+p).value||0);
-  update(roomRef,{prizes,"meta/status":"running"});
-  hostPanel.hidden=true;
-  game.hidden=false;
+  update(roomRef, { "meta/status": "running" });
+
+  // ✅ Force UI transition immediately
+  panel.hidden = true;
+  game.hidden = false;
 };
 
-/* ---------- GAME ---------- */
+
 window.drawNumber = async () => {
-  const snap = await get(roomRef);
-  const d = normalizeRoom(snap.val());
-  if (!isHost(d) || !d.game.available.length) return;
+  const d=normalize((await get(roomRef)).val());
+  if(!d.game.available.length) return;
 
-  const idx = Math.floor(Math.random() * d.game.available.length);
-  const num = d.game.available[idx];
-
+  const num=d.game.available[Math.floor(Math.random()*d.game.available.length)];
   update(roomRef,{
     "game/current":num,
     "game/drawn":[...d.game.drawn,num],
@@ -106,39 +117,44 @@ window.drawNumber = async () => {
   });
 };
 
-window.declareWin = ()=>{
-  get(roomRef).then(s=>{
-    const d=normalizeRoom(s.val());
-    if(!isHost(d)) return;
+window.declareWin = async () => {
+  const d=normalize((await get(roomRef)).val());
+  const iter=`iteration_${d.meta.iteration}`;
+  if(d.winnings?.[iter]?.[winType.value]) return;
 
-    const iter=`iteration_${d.meta.iteration}`;
-    set(ref(db,`rooms/${roomId}/winnings/${iter}/${winType.value}`),
-      {player:winnerPlayer.value});
-  });
+  set(ref(db,`rooms/${roomId}/winnings/${iter}/${winType.value}`),
+    {player:winnerPlayer.value});
 };
 
-window.resetGame = ()=>{
-  get(roomRef).then(s=>{
-    const d=normalizeRoom(s.val());
-    if(!isHost(d)) return;
-
-    update(roomRef,{
-      "meta/iteration":d.meta.iteration+1,
-      game:{current:null,drawn:[],available:numbers90()}
-    });
+window.resetGame = async () => {
+  const d=normalize((await get(roomRef)).val());
+  update(roomRef,{
+    "meta/iteration":d.meta.iteration+1,
+    game:{current:null,drawn:[],available:numbers90()}
   });
 };
 
 /* ---------- LISTENER ---------- */
 function listenRoom(){
-  onValue(roomRef,snap=>{
-    if(!snap.exists()) return;
-    const d=normalizeRoom(snap.val());
+  onValue(roomRef, snap => {
+    if (!snap.exists()) return;
 
-    iterationLabel.innerText="Iteration "+d.meta.iteration;
-    current.innerText=d.game.current??"--";
+    const d = normalize(snap.val());
 
-    if(d.meta.status!=="running") return;
+    roomLabel.innerText = roomId;
+    iterationLabel.innerText = "Iteration " + d.meta.iteration;
+    current.innerText = d.game.current ?? "--";
+
+    // ✅ PHASE CONTROL
+    if (d.meta.status === "setup") {
+      panel.hidden = false;
+      game.hidden = true;
+    }
+
+    if (d.meta.status === "running") {
+      panel.hidden = true;
+      game.hidden = false;
+    }
 
     renderBoard(d.game.drawn);
     renderPlayers(d.players);
@@ -147,6 +163,7 @@ function listenRoom(){
     renderSettlement(d);
   });
 }
+
 
 /* ---------- UI ---------- */
 function renderBoard(drawn){
@@ -178,17 +195,11 @@ function renderTickets(d){
     const inp=document.createElement("input");
     inp.type="number";
     inp.placeholder=`${d.players[id].name} tickets`;
-    inp.value=d.tickets?.[iter]?.[id];
-
-    if(!isHost(d)) inp.disabled=true;
-
-    inp.onchange=()=>{
-      set(
-        ref(db,`rooms/${roomId}/tickets/${iter}/${id}`),
-        +inp.value
-      );
-    };
-
+    inp.value=d.tickets?.[iter]?.[id]||"";
+    inp.onchange=()=>set(
+      ref(db,`rooms/${roomId}/tickets/${iter}/${id}`),
+      +inp.value||0
+    );
     tickets.appendChild(inp);
   }
 }
@@ -196,12 +207,10 @@ function renderTickets(d){
 function renderWinners(d){
   winners.innerHTML="";
   for(const iter in d.winnings){
-    let t=`<table><tr><th colspan="2">${iter}</th></tr>`;
+    let t=`<table><tr><th colspan=2>${iter}</th></tr>`;
     for(const p in d.winnings[iter]){
-      t+=`<tr>
-        <td>${p}</td>
-        <td>${d.players[d.winnings[iter][p].player].name}</td>
-      </tr>`;
+      t+=`<tr><td>${p}</td>
+      <td>${d.players[d.winnings[iter][p].player]?.name}</td></tr>`;
     }
     winners.innerHTML+=t+"</table>";
   }
@@ -209,28 +218,23 @@ function renderWinners(d){
 
 function renderSettlement(d){
   let html="<table><tr><th>Player</th><th>Paid</th><th>Won</th><th>Net</th></tr>";
-
   for(const id in d.players){
     let paid=0,won=0;
-
     for(const iter in d.tickets)
       paid+=(d.tickets[iter][id]||0)*d.meta.ticketPrice;
-
     for(const iter in d.winnings)
       for(const p in d.winnings[iter])
         if(d.winnings[iter][p].player===id)
           won+=d.prizes[p]||0;
 
     const net=won-paid;
-    html+=`<tr>
-      <td>${d.players[id].name}</td>
-      <td>₹${paid}</td>
-      <td>₹${won}</td>
-      <td class="${net>=0?"profit":"loss"}">₹${net}</td>
-    </tr>`;
+    html+=`<tr><td>${d.players[id].name}</td>
+      <td>₹${paid}</td><td>₹${won}</td>
+      <td class="${net>=0?"profit":"loss"}">₹${net}</td></tr>`;
   }
   settlement.innerHTML=html+"</table>";
 }
+
 
 
 
@@ -260,6 +264,5 @@ function renderSettlement(d){
 </script>
 */
 }
-
 
 
