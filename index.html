@@ -9,13 +9,17 @@
 
 <h1>🎱 Tambola Live</h1>
 
+<div id="joinBox">
+  <input id="joinRoomId" placeholder="Enter Room ID">
+  <button onclick="joinRoom()">Join Room</button>
+</div>
+
 <div id="setup">
-  <input id="hostName" placeholder="Host name">
   <input id="ticketPrice" type="number" placeholder="Ticket Price (₹)">
   <button onclick="createRoom()">Create Room</button>
 </div>
 
-<div id="hostPanel" hidden>
+<div id="panel" hidden>
   <h3>Room: <span id="roomLabel"></span></h3>
 
   <input id="playerName" placeholder="Player name">
@@ -37,8 +41,8 @@
   <select id="winnerPlayer"></select>
   <button onclick="declareWin()">Declare</button>
 
-  <h3>Tickets (This Iteration)</h3>
-  <div id="tickets"></div>
+  <h3 class="collapsible" onclick="toggleTickets()">🎟️ Tickets</h3>
+  <div id="tickets" class="collapsed"></div>
 
   <div id="board"></div>
 
