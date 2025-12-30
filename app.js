@@ -178,14 +178,14 @@ function renderTickets(d){
     const inp=document.createElement("input");
     inp.type="number";
     inp.placeholder=`${d.players[id].name} tickets`;
-    inp.value=d.tickets?.[iter]?.[id]||0;
+    inp.value=d.tickets?.[iter]?.[id];
 
     if(!isHost(d)) inp.disabled=true;
 
     inp.onchange=()=>{
       set(
         ref(db,`rooms/${roomId}/tickets/${iter}/${id}`),
-        +inp.value||0
+        +inp.value
       );
     };
 
@@ -260,5 +260,6 @@ function renderSettlement(d){
 </script>
 */
 }
+
 
 
